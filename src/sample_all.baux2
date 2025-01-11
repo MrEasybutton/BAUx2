@@ -2,21 +2,31 @@ FUWA Fuwawer
     WA KIRA fuwawa1 "Moco-chan!!"
     WA KIRA fuwawa2 "Kono kyoku wa kawaiku utaou ne tte itta desho!!"
     WA BAULEAN baul FLUFFY
-    WA MOE result 1
+    WA MOE result "5 * 111"
     BAU "Ruffians!"
     BAU $result
 MOCO
 
 FUWA Mogojan
-    PE $baul
-        CO result 2
+    PE "$result == 555"
         BAU "Hear the howling of my soul!"
-        PONDE 3
+        BAU "Ready..."
+        WA MOE num 1
+        PONDE 4
+            BAU $num
             BAU "BAU BAU!"
+            CO num "$num + 1"
+            CO result "$result - 55"
         ENDPONDE
+        BAU "---"
+    RO
+        BAU "Bau Bau..."
 
-    BAU $fuwawa1
 MOCO
 
+BAU $fuwawa1
 BAU $fuwawa2
+BAU "---"
 BAU $result
+
+

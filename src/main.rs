@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+
 #[derive(Debug, Clone)]
 enum Value {
     Bool(bool),
@@ -10,8 +11,59 @@ fn evaluate_variable(token: &str, variables: &HashMap<String, Value>) -> Option<
     if token.starts_with('$') { variables.get(&token[1..]).cloned() } else { None }
 }
 
+fn evaluate_expression(expr: &str, variables: &HashMap<String, Value>) -> Value {
+    let expr = expr.trim_matches('"');
+    let parts: Vec<&str> = expr.trim().split_whitespace().collect();
+
+    if parts.len() != 3 {
+        panic!("[ERROR: InvalidExpression]: Expected format 'value operator value'");
+    }
+
+    let left = match parts[0] {
+        s if s.starts_with('$') => match variables.get(&s[1..]) {
+            Some(Value::Num(n)) => *n,
+            Some(Value::Bool(b)) => if *b { 1.0 } else { 0.0 },
+            _ => panic!("[ERROR: InvalidValue]: Variable not found or invalid type")
+        },
+        "FLUFFY" => 1.0,
+        "FUZZY" => 0.0,
+        s => match s.parse::<f64>() {
+            Ok(n) => n,
+            Err(_) => panic!("[ERROR: InvalidValue]: '{}' is not a valid number", s)
+        }
+    };
+
+    let right = match parts[2] {
+        s if s.starts_with('$') => match variables.get(&s[1..]) {
+            Some(Value::Num(n)) => *n,
+            Some(Value::Bool(b)) => if *b { 1.0 } else { 0.0 },
+            _ => panic!("[ERROR: InvalidValue]: Variable not found or invalid type")
+        },
+        "FLUFFY" => 1.0,
+        "FUZZY" => 0.0,
+        s => match s.parse::<f64>() {
+            Ok(n) => n,
+            Err(_) => panic!("[ERROR: InvalidValue]: '{}' is not a valid number", s)
+        }
+    };
+
+    match parts[1] {
+        "+" => Value::Num(left + right),
+        "-" => Value::Num(left - right),
+        "*" => Value::Num(left * right),
+        "/" => Value::Num(left / right),
+        "%" => Value::Num(left % right),
+        "==" => Value::Bool((left - right).abs() < f64::EPSILON),
+        ">" => Value::Bool(left > right),
+        "<" => Value::Bool(left < right),
+        ">=" => Value::Bool(left >= right),
+        "<=" => Value::Bool(left <= right),
+        "!=" => Value::Bool((left - right).abs() >= f64::EPSILON),
+        _ => panic!("[ERROR: InvalidOperator]: Unsupported operator")
+    }
+}
 fn main() {
-    let code = include_str!("program.baux2");
+    let code = include_str!("sample_all.baux2");
     let mut variables: HashMap<String, Value> = HashMap::new();
     let mut tokens = Vec::new();
     let mut in_quote = false;
@@ -80,11 +132,31 @@ fn main() {
                         "BAULEAN" => match var_value.as_str() {
                             "FLUFFY" => Value::Bool(true),
                             "FUZZY" => Value::Bool(false),
-                            _ => panic!("[ERROR: IncompleteStatement]: BAULEAN requires FLUFFY/FUZZY")
+                            expr if expr.contains(' ') => {
+                                match evaluate_expression(expr, &variables) {
+                                    Value::Bool(b) => Value::Bool(b),
+                                    _ => panic!("[ERROR: IncompatibleType]: Expression must evaluate to boolean")
+                                }
+                            },
+                            _ => panic!("[ERROR: IncompleteStatement]: BAULEAN requires FLUFFY/FUZZY or expression")
                         },
-                        "MOE" => match var_value.parse() {
-                            Ok(num) => Value::Num(num),
-                            Err(_) => panic!("[ERROR: IncompleteStatement]: MOE requires number")
+                        "MOE" => {
+                            if var_value.contains(' ') {
+                                match evaluate_expression(var_value, &variables) {
+                                    Value::Num(n) => Value::Num(n),
+                                    _ => panic!("[ERROR: IncompatibleType]: Expression must evaluate to number")
+                                }
+                            } else if var_value.starts_with('$') {
+                                match variables.get(&var_value[1..]) {
+                                    Some(value) => value.clone(),
+                                    None => panic!("[ERROR: VanishValue]: Variable not found")
+                                }
+                            } else {
+                                match var_value.parse() {
+                                    Ok(num) => Value::Num(num),
+                                    Err(_) => panic!("[ERROR: IncompleteStatement]: MOE requires number or expression")
+                                }
+                            }
                         },
                         _ => panic!("Unknown type: {}", var_type)
                     };
@@ -113,31 +185,66 @@ fn main() {
                 pc += 1;
             },
 
-            Some("CO") if pc + 2 < tokens.len() => {
+            Some("CO") if pc + 1 < tokens.len() => {
+                pc += 1;
                 if should_execute {
-                    pc += 1;
                     let var_name = &tokens[pc];
                     pc += 1;
                     let new_value = &tokens[pc];
 
                     if let Some(existing_var) = variables.get(var_name) {
+
                         let value = match existing_var {
+
                             Value::Str(_) if new_value.starts_with('"') && new_value.ends_with('"') =>
                                 Value::Str(new_value[1..new_value.len()-1].to_string()),
+
                             Value::Bool(_) => match new_value.as_str() {
                                 "FLUFFY" => Value::Bool(true),
                                 "FUZZY" => Value::Bool(false),
                                 _ => panic!("[ERROR: IncompleteStatement]: Boolean assignment requires FLUFFY/FUZZY")
                             },
-                            Value::Num(_) => match new_value.parse() {
-                                Ok(num) => Value::Num(num),
-                                Err(_) => panic!("[ERROR: IncompatibleType]: Number assignment requires numeric value")
+
+                            Value::Num(_) => {
+
+                                match new_value.parse() {
+                                    Ok(num) => Value::Num(num),
+                                    Err(_) => {
+
+                                        match evaluate_expression(new_value, &variables) {
+                                            Value::Num(n) => Value::Num(n),
+                                            _ => panic!("[ERROR: IncompatibleType]: Expression must evaluate to number for MOE assignment")
+                                        }
+                                    }
+                                }
                             },
-                            _ => panic!("[ERROR: InvalidAssignment]")
+                            _ => panic!("[ERROR: InvalidAssignment]"),
                         };
+
                         variables.insert(var_name.to_string(), value);
                     } else {
-                        panic!("Undefined variable: {}", var_name);
+
+                        let value = if new_value.contains(' ') {
+
+                            match evaluate_expression(new_value, &variables) {
+                                Value::Num(n) => Value::Num(n),
+                                _ => panic!("[ERROR: IncompatibleType]: Expression must evaluate to a number for MOE assignment")
+                            }
+                        } else if new_value.starts_with('$') {
+
+                            match variables.get(&new_value[1..]) {
+                                Some(value) => value.clone(),
+                                None => panic!("[ERROR: VanishValue]: Variable not found")
+                            }
+                        } else {
+
+                            match new_value.parse() {
+                                Ok(num) => Value::Num(num),
+                                Err(_) => panic!("[ERROR: IncompleteStatement]: MOE assignment requires a numeric value or expression")
+                            }
+                        };
+
+                        variables.insert(var_name.to_string(), value);
                     }
                 }
                 pc += 1;
@@ -151,14 +258,13 @@ fn main() {
                         match variables.get(var_name) {
                             Some(Value::Bool(b)) => if *b { 1 } else { 0 },
                             Some(Value::Num(n)) => *n as i32,
-                            _ => panic!("[ERROR: IncompatibleType]: PONDE requires numeric/boolean value")
+                            _ => panic!("[ERROR: IncompatibleType]: PONDE requires numeric/boolean value"),
                         }
                     } else {
                         match tokens[pc].as_str() {
                             "FLUFFY" => 1,
                             "FUZZY" => 0,
-                            _ => tokens[pc].parse::<i32>()
-                                .unwrap_or_else(|_| panic!("[ERROR: IncompleteStatement]: PONDE requires number/FLUFFY/FUZZY"))
+                            _ => tokens[pc].parse::<i32>().unwrap_or_else(|_| panic!("[ERROR: IncompleteStatement]: PONDE requires number/FLUFFY/FUZZY")),
                         }
                     };
 
@@ -167,20 +273,65 @@ fn main() {
                         let mut inner_pc = loop_start;
                         while inner_pc < tokens.len() && tokens[inner_pc] != "ENDPONDE" {
 
+                            if tokens[inner_pc] == "CO" && inner_pc + 2 < tokens.len() {
+                                pc = inner_pc;
+                                if should_execute {
+                                    pc += 1;
+                                    let var_name = &tokens[pc];
+                                    pc += 1;
+                                    let new_value = &tokens[pc];
+
+                                    let value = if new_value.contains(' ') {
+
+                                        match evaluate_expression(new_value, &variables) {
+                                            Value::Num(n) => Value::Num(n),
+                                            Value::Str(s) => Value::Str(s),
+                                            Value::Bool(b) => Value::Bool(b),
+                                        }
+                                    } else {
+
+                                        match new_value.as_str() {
+                                            "FLUFFY" => Value::Bool(true),
+                                            "FUZZY" => Value::Bool(false),
+                                            _ => {
+                                                if let Ok(num) = new_value.parse::<f64>() {
+                                                    Value::Num(num)
+                                                } else if new_value.starts_with('"') && new_value.ends_with('"') {
+                                                    Value::Str(new_value[1..new_value.len()-1].to_string())
+                                                } else {
+                                                    panic!("[ERROR: IncompatibleType]: Unable to parse value '{}'", new_value);
+                                                }
+                                            }
+                                        }
+                                    };
+
+                                    variables.insert(var_name.to_string(), value);
+                                }
+                                pc += 1;
+                            }
+
                             if tokens[inner_pc] == "BAU" && inner_pc + 1 < tokens.len() {
-                                println!("{}", &tokens[inner_pc + 1][1..tokens[inner_pc + 1].len() - 1]);
+                                let token = &tokens[inner_pc + 1];
+                                if token.starts_with('$') {
+                                    match variables.get(&token[1..]) {
+                                        Some(Value::Str(s)) => println!("{}", s),
+                                        Some(Value::Bool(b)) => println!("{}", b),
+                                        Some(Value::Num(n)) => println!("{}", n),
+                                        None => panic!("[ERROR: VanishValue]: Variable not found: {}", token)
+                                    }
+                                } else if token.starts_with('"') && token.ends_with('"') {
+                                    println!("{}", &token[1..token.len() - 1]);
+                                } else {
+                                    panic!("[ERROR: IncompleteStatement]: BAU requires quoted string or variable");
+                                }
                                 inner_pc += 1;
                             }
                             inner_pc += 1;
                         }
                     }
-
-                    while pc < tokens.len() && tokens[pc] != "ENDPONDE" {
-                        pc += 1;
-                    }
                 }
                 pc += 1;
-            },
+            }
 
             Some("FUWA") if pc + 2 < tokens.len() => {
                 pc += 1;
@@ -204,7 +355,12 @@ fn main() {
 
             Some("PE") if pc + 1 < tokens.len() => {
                 pc += 1;
-                let condition = if tokens[pc].starts_with('$') {
+                let condition = if tokens[pc].contains(' ') {
+                    match evaluate_expression(&tokens[pc], &variables) {
+                        Value::Bool(b) => b,
+                        _ => panic!("[ERROR: IncompatibleType]: Expression must evaluate to boolean")
+                    }
+                } else if tokens[pc].starts_with('$') {
                     match variables.get(&tokens[pc][1..]) {
                         Some(Value::Bool(b)) => *b,
                         _ => panic!("[ERROR: IncompatibleType]: PE requires a boolean variable")
@@ -213,13 +369,7 @@ fn main() {
                     match tokens[pc].as_str() {
                         "FLUFFY" => true,
                         "FUZZY" => false,
-                        _ => {
-                            let var_value = evaluate_variable(&*tokens[pc], &variables);
-                            match var_value {
-                                Some(Value::Bool(b)) => b,
-                                _ => panic!("[ERROR: IncompatibleType]: PE requires a boolean or BAULEAN variable")
-                            }
-                        }
+                        _ => panic!("[ERROR: IncompatibleType]: PE requires boolean expression or FLUFFY/FUZZY")
                     }
                 };
 
@@ -253,11 +403,14 @@ fn main() {
 
             Some("RO") => {
                 condition_stack.pop();
+
                 let condition = !block_executed;
+
                 condition_stack.push(condition);
                 if !block_executed {
                     block_executed = true;
                 }
+
                 pc += 1;
             },
 
