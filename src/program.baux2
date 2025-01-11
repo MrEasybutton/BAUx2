@@ -1,0 +1,22 @@
+FUWA Fuwawer
+    WA KIRA fuwawa1 "Moco-chan!!"
+    WA KIRA fuwawa2 "Kono kyoku wa kawaiku utaou ne tte itta desho!!"
+    WA BAULEAN baul FLUFFY
+    WA MOE result 1
+    BAU "Ruffians!"
+    BAU $result
+MOCO
+
+FUWA Mogojan
+    PE $baul
+        CO result 2
+        BAU "Hear the howling of my soul!"
+        PONDE 3
+            BAU "BAU BAU!"
+        ENDPONDE
+
+    BAU $fuwawa1
+MOCO
+
+BAU $fuwawa2
+BAU $result
