@@ -21,6 +21,7 @@ BAUx2 has several basic keywords and functions that can be called.
 #### BAU
 BAU is BAUx2's system print function. It supports strings and variables.
 ```BAU "BAU BAU Ruffians!"```
+
 ```BAU $variable```
 #### WA
 WA is the initialisation keyword. It supports three variable types:
@@ -28,9 +29,13 @@ WA is the initialisation keyword. It supports three variable types:
 - BAULEAN -> Boolean using FLUFFY/FUZZY
 - MOE -> Int/Double
 ```WA KIRA string "Haeh?"```
+
 ```WA BAULEAN boolean FLUFFY```
+
 ```WA MOE number 80```
+
 ```WA MOE numbervar $variable```
+
 #### CO
 CO is the re-assignment keyword for initialised variables. The value re-assigned MUST correspond to the variable type.
 Both WA and CO support arithmetic expressions, like so:
@@ -43,6 +48,7 @@ PE FLUFFY
 RO
   BAU "Mango Jam"
 ```
+
 ```
 PE "$result == 555"
   BAU "Another Pero sighting!"
@@ -129,6 +135,7 @@ BAU $fuwawa2
 BAU "---"
 BAU $result
 ```
+
 Output:
 ```
 Ruffians!
