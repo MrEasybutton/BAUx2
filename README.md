@@ -1,3 +1,5 @@
+# BAUx2: The FUWAMOCO-themed esolang!
+
 ## About
 
 **BAUx2** is an **esoteric programming language** inspired by FUWAMOCO of Hololive English Advent!
