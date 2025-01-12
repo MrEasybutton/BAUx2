@@ -20,6 +20,7 @@ BAUx2 has several basic keywords and functions that can be called.
 
 #### BAU
 BAU is BAUx2's system print function. It supports strings and variables.
+
 ```BAU "BAU BAU Ruffians!"```
 
 ```BAU $variable```
