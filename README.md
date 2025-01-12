@@ -28,6 +28,7 @@ WA is the initialisation keyword. It supports three variable types:
 - KIRA -> String
 - BAULEAN -> Boolean using FLUFFY/FUZZY
 - MOE -> Int/Double
+
 ```WA KIRA string "Haeh?"```
 
 ```WA BAULEAN boolean FLUFFY```
