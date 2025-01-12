@@ -4,7 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-egui = "0.30.0"  # Example for egui
-egui_extras = "0.30.0"
-eframe = "0.30.0"
-
+druid = "0.8.3"

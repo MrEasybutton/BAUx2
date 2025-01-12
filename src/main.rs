@@ -1,432 +1,75 @@
+mod interpreter;
+
+use druid::{AppLauncher, Data, Lens, Widget, WidgetExt, WindowDesc, Color};
 use std::collections::HashMap;
+use interpreter::{run_interpreter};
+use crate::interpreter::Value;
 
-#[derive(Debug, Clone)]
-enum Value {
-    Bool(bool),
-    Str(String),
-    Num(f64),
+#[derive(Clone, Data, Lens)]
+struct AppState {
+    code: String,
+    output: String,
 }
 
-fn evaluate_variable(token: &str, variables: &HashMap<String, Value>) -> Option<Value> {
-    if token.starts_with('$') { variables.get(&token[1..]).cloned() } else { None }
-}
-
-fn evaluate_expression(expr: &str, variables: &HashMap<String, Value>) -> Value {
-    let expr = expr.trim_matches('"');
-    let parts: Vec<&str> = expr.trim().split_whitespace().collect();
-
-    if parts.len() != 3 {
-        panic!("[ERROR: InvalidExpression]: Expected format 'value operator value'");
-    }
-
-    let left = match parts[0] {
-        s if s.starts_with('$') => match variables.get(&s[1..]) {
-            Some(Value::Num(n)) => *n,
-            Some(Value::Bool(b)) => if *b { 1.0 } else { 0.0 },
-            _ => panic!("[ERROR: InvalidValue]: Variable not found or invalid type")
-        },
-        "FLUFFY" => 1.0,
-        "FUZZY" => 0.0,
-        s => match s.parse::<f64>() {
-            Ok(n) => n,
-            Err(_) => panic!("[ERROR: InvalidValue]: '{}' is not a valid number", s)
-        }
-    };
-
-    let right = match parts[2] {
-        s if s.starts_with('$') => match variables.get(&s[1..]) {
-            Some(Value::Num(n)) => *n,
-            Some(Value::Bool(b)) => if *b { 1.0 } else { 0.0 },
-            _ => panic!("[ERROR: InvalidValue]: Variable not found or invalid type")
-        },
-        "FLUFFY" => 1.0,
-        "FUZZY" => 0.0,
-        s => match s.parse::<f64>() {
-            Ok(n) => n,
-            Err(_) => panic!("[ERROR: InvalidValue]: '{}' is not a valid number", s)
-        }
-    };
-
-    match parts[1] {
-        "+" => Value::Num(left + right),
-        "-" => Value::Num(left - right),
-        "*" => Value::Num(left * right),
-        "/" => Value::Num(left / right),
-        "%" => Value::Num(left % right),
-        "==" => Value::Bool((left - right).abs() < f64::EPSILON),
-        ">" => Value::Bool(left > right),
-        "<" => Value::Bool(left < right),
-        ">=" => Value::Bool(left >= right),
-        "<=" => Value::Bool(left <= right),
-        "!=" => Value::Bool((left - right).abs() >= f64::EPSILON),
-        _ => panic!("[ERROR: InvalidOperator]: Unsupported operator")
-    }
-}
 fn main() {
-    let code = include_str!("sample_all.baux2");
-    let mut variables: HashMap<String, Value> = HashMap::new();
-    let mut tokens = Vec::new();
-    let mut in_quote = false;
-    let mut current_token = String::new();
+    let initial_state = AppState {
+        code: String::new(),
+        output: String::new(),
+    };
+    let main_window = WindowDesc::new(build_ui())
+        .title("BAUDOL: The official BAUx2 IDE")
+        .window_size((1000.0, 800.0));
 
-    let mut skip_line = false;
-    for c in code.chars() {
-        if skip_line {
-            if c == '\n' {
-                skip_line = false;
-            }
-            continue;
-        }
+    AppLauncher::with_window(main_window)
+        .launch(initial_state)
+        .expect("BAUDOL failed to launch!");
+}
 
-        match c {
-            ';' => skip_line = true,
-            '"' => {
-                in_quote = !in_quote;
-                current_token.push(c);
-                if !in_quote {
-                    tokens.push(current_token.clone());
-                    current_token.clear();
-                }
-            }
-            c if c.is_whitespace() && !in_quote => {
-                if !current_token.is_empty() {
-                    tokens.push(current_token.clone());
-                    current_token.clear();
-                }
-            }
-            _ => current_token.push(c),
-        }
-    }
+fn build_ui() -> impl Widget<AppState> {
+    use druid::widget::{Flex, TextBox, Button, Scroll};
 
-    if !current_token.is_empty() { tokens.push(current_token); }
+    let primary_color = Color::rgb8(241, 166, 214);
+    let secondary_color = Color::rgb8(145, 168, 209);
+    let background_color = Color::rgb8(247, 202, 201);
 
-    let mut pc = 0;
-    let mut suppress_class_messages = true;
-    let mut condition_stack = Vec::new();
-    let mut block_executed = false;
+    let code_input = TextBox::multiline()
+        .with_placeholder("BAU \"Bau Bau World!\"")
+        .lens(AppState::code)
+        .expand_width()
+        .height(380.0)
+        .background(background_color)
+        .padding(10.0);
 
-    if tokens.get(0) == Some(&"CHIHUAHUA".to_string()) {
-        suppress_class_messages = false;
-        pc += 1;
-    }
+    let output_textbox = TextBox::multiline()
+        .with_placeholder("Bau Bau World!")
+        .lens(AppState::output)
+        .expand_width()
+        .height(220.0)
+        .background(secondary_color)
+        .padding(10.0);
 
-    while pc < tokens.len() {
-        let should_execute = condition_stack.last().copied().unwrap_or(true);
+    let output_scroll = Scroll::new(output_textbox)
+        .vertical();
 
-        match tokens.get(pc).map(String::as_str) {
-            Some("WA") if pc + 3 < tokens.len() => {
-                if should_execute {
-                    pc += 1;
-                    let var_type = &tokens[pc];
-                    pc += 1;
-                    let var_name = &tokens[pc];
-                    pc += 1;
-                    let var_value = &tokens[pc];
+    let execute_button = Button::new("Run")
+        .on_click(|_ctx, data: &mut AppState, _env| {
+            let mut variables: HashMap<String, Value> = HashMap::new();
 
-                    let value = match var_type.as_str() {
-                        "KIRA" => {
-                            if var_value.starts_with('"') && var_value.ends_with('"') {
-                                Value::Str(var_value[1..var_value.len()-1].to_string())
-                            } else { panic!("[ERROR: IncompatibleType]: KIRA requires quoted string") }
-                        },
-                        "BAULEAN" => match var_value.as_str() {
-                            "FLUFFY" => Value::Bool(true),
-                            "FUZZY" => Value::Bool(false),
-                            expr if expr.contains(' ') => {
-                                match evaluate_expression(expr, &variables) {
-                                    Value::Bool(b) => Value::Bool(b),
-                                    _ => panic!("[ERROR: IncompatibleType]: Expression must evaluate to boolean")
-                                }
-                            },
-                            _ => panic!("[ERROR: IncompleteStatement]: BAULEAN requires FLUFFY/FUZZY or expression")
-                        },
-                        "MOE" => {
-                            if var_value.contains(' ') {
-                                match evaluate_expression(var_value, &variables) {
-                                    Value::Num(n) => Value::Num(n),
-                                    _ => panic!("[ERROR: IncompatibleType]: Expression must evaluate to number")
-                                }
-                            } else if var_value.starts_with('$') {
-                                match variables.get(&var_value[1..]) {
-                                    Some(value) => value.clone(),
-                                    None => panic!("[ERROR: VanishValue]: Variable not found")
-                                }
-                            } else {
-                                match var_value.parse() {
-                                    Ok(num) => Value::Num(num),
-                                    Err(_) => panic!("[ERROR: IncompleteStatement]: MOE requires number or expression")
-                                }
-                            }
-                        },
-                        _ => panic!("Unknown type: {}", var_type)
-                    };
-                    variables.insert(var_name.to_string(), value);
-                }
-                pc += 1;
-            },
+            data.output.clear();
+            run_interpreter(&data.code, &mut variables, &mut data.output);
+        })
+        .padding(2.0)
+        .background(primary_color)
+        .fix_width(60.0)
+        .border(primary_color, 4.0)
+        .center();
 
-            Some("BAU") if pc + 1 < tokens.len() => {
-                pc += 1;
-                if should_execute {
-                    let token = &tokens[pc];
-                    if token.starts_with('$') {
-                        match variables.get(&token[1..]) {
-                            Some(Value::Str(s)) => println!("{}", s),
-                            Some(Value::Bool(b)) => println!("{}", b),
-                            Some(Value::Num(n)) => println!("{}", n),
-                            None => panic!("[ERROR: VanishValue]: Variable not found: {}", token)
-                        }
-                    } else if token.starts_with('"') && token.ends_with('"') {
-                        println!("{}", &token[1..token.len() - 1]);
-                    } else {
-                        panic!("[ERROR: IncompleteStatement]: BAU requires quoted string or variable");
-                    }
-                }
-                pc += 1;
-            },
-
-            Some("CO") if pc + 1 < tokens.len() => {
-                pc += 1;
-                if should_execute {
-                    let var_name = &tokens[pc];
-                    pc += 1;
-                    let new_value = &tokens[pc];
-
-                    if let Some(existing_var) = variables.get(var_name) {
-
-                        let value = match existing_var {
-
-                            Value::Str(_) if new_value.starts_with('"') && new_value.ends_with('"') =>
-                                Value::Str(new_value[1..new_value.len()-1].to_string()),
-
-                            Value::Bool(_) => match new_value.as_str() {
-                                "FLUFFY" => Value::Bool(true),
-                                "FUZZY" => Value::Bool(false),
-                                _ => panic!("[ERROR: IncompleteStatement]: Boolean assignment requires FLUFFY/FUZZY")
-                            },
-
-                            Value::Num(_) => {
-
-                                match new_value.parse() {
-                                    Ok(num) => Value::Num(num),
-                                    Err(_) => {
-
-                                        match evaluate_expression(new_value, &variables) {
-                                            Value::Num(n) => Value::Num(n),
-                                            _ => panic!("[ERROR: IncompatibleType]: Expression must evaluate to number for MOE assignment")
-                                        }
-                                    }
-                                }
-                            },
-                            _ => panic!("[ERROR: InvalidAssignment]"),
-                        };
-
-                        variables.insert(var_name.to_string(), value);
-                    } else {
-
-                        let value = if new_value.contains(' ') {
-
-                            match evaluate_expression(new_value, &variables) {
-                                Value::Num(n) => Value::Num(n),
-                                _ => panic!("[ERROR: IncompatibleType]: Expression must evaluate to a number for MOE assignment")
-                            }
-                        } else if new_value.starts_with('$') {
-
-                            match variables.get(&new_value[1..]) {
-                                Some(value) => value.clone(),
-                                None => panic!("[ERROR: VanishValue]: Variable not found")
-                            }
-                        } else {
-
-                            match new_value.parse() {
-                                Ok(num) => Value::Num(num),
-                                Err(_) => panic!("[ERROR: IncompleteStatement]: MOE assignment requires a numeric value or expression")
-                            }
-                        };
-
-                        variables.insert(var_name.to_string(), value);
-                    }
-                }
-                pc += 1;
-            },
-
-            Some("PONDE") if pc + 1 < tokens.len() => {
-                pc += 1;
-                if should_execute {
-                    let iterations = if tokens[pc].starts_with('$') {
-                        let var_name = &tokens[pc][1..];
-                        match variables.get(var_name) {
-                            Some(Value::Bool(b)) => if *b { 1 } else { 0 },
-                            Some(Value::Num(n)) => *n as i32,
-                            _ => panic!("[ERROR: IncompatibleType]: PONDE requires numeric/boolean value"),
-                        }
-                    } else {
-                        match tokens[pc].as_str() {
-                            "FLUFFY" => 1,
-                            "FUZZY" => 0,
-                            _ => tokens[pc].parse::<i32>().unwrap_or_else(|_| panic!("[ERROR: IncompleteStatement]: PONDE requires number/FLUFFY/FUZZY")),
-                        }
-                    };
-
-                    let loop_start = pc + 1;
-                    for _ in 0..iterations {
-                        let mut inner_pc = loop_start;
-                        while inner_pc < tokens.len() && tokens[inner_pc] != "ENDPONDE" {
-
-                            if tokens[inner_pc] == "CO" && inner_pc + 2 < tokens.len() {
-                                pc = inner_pc;
-                                if should_execute {
-                                    pc += 1;
-                                    let var_name = &tokens[pc];
-                                    pc += 1;
-                                    let new_value = &tokens[pc];
-
-                                    let value = if new_value.contains(' ') {
-
-                                        match evaluate_expression(new_value, &variables) {
-                                            Value::Num(n) => Value::Num(n),
-                                            Value::Str(s) => Value::Str(s),
-                                            Value::Bool(b) => Value::Bool(b),
-                                        }
-                                    } else {
-
-                                        match new_value.as_str() {
-                                            "FLUFFY" => Value::Bool(true),
-                                            "FUZZY" => Value::Bool(false),
-                                            _ => {
-                                                if let Ok(num) = new_value.parse::<f64>() {
-                                                    Value::Num(num)
-                                                } else if new_value.starts_with('"') && new_value.ends_with('"') {
-                                                    Value::Str(new_value[1..new_value.len()-1].to_string())
-                                                } else {
-                                                    panic!("[ERROR: IncompatibleType]: Unable to parse value '{}'", new_value);
-                                                }
-                                            }
-                                        }
-                                    };
-
-                                    variables.insert(var_name.to_string(), value);
-                                }
-                                pc += 1;
-                            }
-
-                            if tokens[inner_pc] == "BAU" && inner_pc + 1 < tokens.len() {
-                                let token = &tokens[inner_pc + 1];
-                                if token.starts_with('$') {
-                                    match variables.get(&token[1..]) {
-                                        Some(Value::Str(s)) => println!("{}", s),
-                                        Some(Value::Bool(b)) => println!("{}", b),
-                                        Some(Value::Num(n)) => println!("{}", n),
-                                        None => panic!("[ERROR: VanishValue]: Variable not found: {}", token)
-                                    }
-                                } else if token.starts_with('"') && token.ends_with('"') {
-                                    println!("{}", &token[1..token.len() - 1]);
-                                } else {
-                                    panic!("[ERROR: IncompleteStatement]: BAU requires quoted string or variable");
-                                }
-                                inner_pc += 1;
-                            }
-                            inner_pc += 1;
-                        }
-                    }
-                }
-                pc += 1;
-            }
-
-            Some("FUWA") if pc + 2 < tokens.len() => {
-                pc += 1;
-                if tokens[pc] == ">" {
-                    pc += 1;
-                    if !suppress_class_messages {
-                        println!("Class: {}", tokens[pc]);
-                    }
-                }
-                pc += 1;
-            },
-
-            Some("MOCO") => {
-                if !suppress_class_messages {
-                    println!("End class");
-                }
-                condition_stack.clear();
-                block_executed = false;
-                pc += 1;
-            },
-
-            Some("PE") if pc + 1 < tokens.len() => {
-                pc += 1;
-                let condition = if tokens[pc].contains(' ') {
-                    match evaluate_expression(&tokens[pc], &variables) {
-                        Value::Bool(b) => b,
-                        _ => panic!("[ERROR: IncompatibleType]: Expression must evaluate to boolean")
-                    }
-                } else if tokens[pc].starts_with('$') {
-                    match variables.get(&tokens[pc][1..]) {
-                        Some(Value::Bool(b)) => *b,
-                        _ => panic!("[ERROR: IncompatibleType]: PE requires a boolean variable")
-                    }
-                } else {
-                    match tokens[pc].as_str() {
-                        "FLUFFY" => true,
-                        "FUZZY" => false,
-                        _ => panic!("[ERROR: IncompatibleType]: PE requires boolean expression or FLUFFY/FUZZY")
-                    }
-                };
-
-                condition_stack.push(condition);
-                block_executed = condition;
-                pc += 1;
-            },
-
-            Some("ROPE") if pc + 1 < tokens.len() => {
-                condition_stack.pop();
-                pc += 1;
-                let condition = match tokens[pc].as_str() {
-                    "FLUFFY" => true,
-                    "FUZZY" => false,
-                    _ => {
-                        let var_value = evaluate_variable(&*tokens[pc], &variables);
-                        match var_value {
-                            Some(Value::Bool(b)) => b,
-                            _ => panic!("[ERROR: IncompatibleType]: ROPE requires BAULEAN")
-                        }
-                    }
-                };
-
-                let should_run = !block_executed;
-                condition_stack.push(condition && should_run);
-                if condition && should_run {
-                    block_executed = true;
-                }
-                pc += 1;
-            },
-
-            Some("RO") => {
-                condition_stack.pop();
-
-                let condition = !block_executed;
-
-                condition_stack.push(condition);
-                if !block_executed {
-                    block_executed = true;
-                }
-
-                pc += 1;
-            },
-
-            Some("NOEH") => {
-                println!("Ended program with code NOEH");
-                return;
-            },
-
-            Some(token) => {
-                if should_execute {
-                    println!("[ERROR: Unknown token]: {}", token);
-                }
-                pc += 1;
-            },
-
-            None => break,
-        }
-    }
+    Flex::column()
+        .with_child(execute_button)
+        .with_spacer(20.0)
+        .with_child(code_input)
+        .with_spacer(20.0)
+        .with_child(output_scroll)
+        .padding(20.0)
+        .background(background_color)
 }
