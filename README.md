@@ -94,6 +94,7 @@ While BAUx2 is interpreted and runs line-by-line, it is written in Rust which en
 
 ### 🤖 BAUDOL IDE
 BAUDOL is the official IDE for BAUx2 coding. It currently only has an input field, 'Run' button and output box.
+
 To-Do:
 - Tab key
 - Undo/Redo button
