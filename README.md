@@ -107,7 +107,7 @@ To-Do:
 
 Sample code will be periodically updated in the source code. Here's a sample which uses all of BAUx2's current functions excluding CHIHUAHUA.
 ```
-FUWA > Fuwawer
+FUWA > Fuwawa
     WA KIRA fuwawa1 "Moco-chan!!"
     WA KIRA fuwawa2 "Kono kyoku wa kawaiku utaou ne tte itta desho!!"
     WA BAULEAN baul FLUFFY
@@ -116,7 +116,7 @@ FUWA > Fuwawer
     BAU $result
 MOCO
 
-FUWA > Mogojan
+FUWA > Mocochan
     PE "$result == 555"
         BAU "Hear the howling of my soul!"
         BAU "Ready..."
