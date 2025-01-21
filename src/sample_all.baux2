@@ -1,32 +1,27 @@
 FUWA Fuwawa
-    WA KIRA fuwawa1 "Moco-chan!!"
-    WA KIRA fuwawa2 "Kono kyoku wa kawaiku utaou ne tte itta desho!!"
-    WA BAULEAN baul FLUFFY
-    WA MOE result "5 * 111"
+    WA KIRA fuwawa1 = "Moco-chan!!"
+    WA KIRA fuwawa2 = "Kono kyoku wa kawaiku utaou ne tte itta desho!!"
+    WA BAULEAN baul = FLUFFY
+    WA MOE result = <5 * 111>
     BAU "Ruffians!"
-    BAU $result
+    BAU result
 MOCO
 
 FUWA Mocochan
-    PE "$result == 555"
         BAU "Hear the howling of my soul!"
         BAU "Ready..."
-        WA MOE num 1
-        PONDE 4
-            BAU $num
+        PONDE num 1..4 {
+            BAU num
             BAU "BAU BAU!"
-            CO num "$num + 1"
-            CO result "$result - 55"
-        ENDPONDE
+            CO num = <num + 1>
+            CO result = <result - 55>
+        }
         BAU "---"
-    RO
-        BAU "Bau Bau..."
-
 MOCO
 
-BAU $fuwawa1
-BAU $fuwawa2
+BAU fuwawa1
+BAU fuwawa2
 BAU "---"
-BAU $result
+BAU result
 
 

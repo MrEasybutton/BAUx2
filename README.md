@@ -23,26 +23,26 @@ BAU is BAUx2's system print function. It supports strings and variables.
 
 ```BAU "BAU BAU Ruffians!"```
 
-```BAU $variable```
+```BAU variable```
 #### WA
 WA is the initialisation keyword. It supports three variable types:
 - KIRA -> String
 - BAULEAN -> Boolean using FLUFFY/FUZZY
 - MOE -> Int/Double
 
-```WA KIRA string "Haeh?"```
+```WA KIRA string = "Haeh?"```
 
-```WA BAULEAN boolean FLUFFY```
+```WA BAULEAN boolean = FLUFFY```
 
-```WA MOE number 80```
+```WA MOE number = 80```
 
-```WA MOE numbervar $variable```
+```WA MOE numbervar = variable```
 
 #### CO
 CO is the re-assignment keyword for initialised variables. The value re-assigned MUST correspond to the variable type.
 Both WA and CO support arithmetic expressions, like so:
-```CO y "$x * 2"```
-#### PE, ROPE, RO
+```CO y = <$x * 2>```
+#### PE, ROPE, RO (removed temporarily due to code revision)
 PE, ROPE and RO correspond to if/elif/else statements in typical languages. PE and ROPE support arithmetic expressions and BAULEANs.
 ```
 PE FLUFFY
@@ -52,43 +52,31 @@ RO
 ```
 
 ```
-PE "$result == 555"
+PE <$result == 555>
   BAU "Another Pero sighting!"
-ROPE "$result == 455"
+ROPE <$result == 455>
   BAU "That's not Pero..."
 RO
   BAU "Where's Pero, Ruffians?"
 ```
-#### PONDE, ENDPONDE
+#### PONDE
 PONDE is the keyword for number-based looping.
 ```
-PONDE 4
-  BAU $num
+WA MOE count = 0
+PONDE count 1..6 {
+  BAU count
   BAU "BAU BAU!"
-  CO num "$num + 1"
-ENDPONDE
+}
 ```
-ENDPONDE is used in nested code to declare the end of a loop. Otherwise, the rest of the code will be looped as well.
-#### FUWA, MOCO
-FUWA and MOCO are class keywords but are more of a debug feature and formatting structure.
+#### FUWA, MOCO (non-functional, will be improved)
+FUWA and MOCO are optional formatting keywords. 
 ```
 FUWA > className
   BAU "This is a class, Ruffians, but we're not learning anything..."
 MOCO
 ```
-With this class structure, code can be segmented into titled parts.
-#### CHIHUAHUA
-CHIHUAHUA is a debug keyword that can be called at the start of your code. 
+With this class structure, code can be segmented into titled parts for readability (its a feature not a bug, trust)
 
-When paired with a proper class structure, it outputs the start and end of a class.
-
-Example output:
-```
-Class: Fuwawer
-Ruffians!
-555
-End class
-```
 ### 💠 Rust-written
 While BAUx2 is interpreted and runs line-by-line, it is written in Rust which enables faster runtimes.
 
@@ -106,37 +94,33 @@ To-Do:
 ## Sample Code
 
 Sample code will be periodically updated in the source code. Here's a sample which uses all of BAUx2's current functions excluding CHIHUAHUA.
+
 ```
-FUWA > Fuwawa
-    WA KIRA fuwawa1 "Moco-chan!!"
-    WA KIRA fuwawa2 "Kono kyoku wa kawaiku utaou ne tte itta desho!!"
-    WA BAULEAN baul FLUFFY
-    WA MOE result "5 * 111"
+FUWA Fuwawa
+    WA KIRA fuwawa1 = "Moco-chan!!"
+    WA KIRA fuwawa2 = "Kono kyoku wa kawaiku utaou ne tte itta desho!!"
+    WA BAULEAN baul = FLUFFY
+    WA MOE result = <5 * 111>
     BAU "Ruffians!"
-    BAU $result
+    BAU result
 MOCO
 
-FUWA > Mocochan
-    PE "$result == 555"
+FUWA Mocochan
         BAU "Hear the howling of my soul!"
         BAU "Ready..."
-        WA MOE num 1
-        PONDE 4
-            BAU $num
+        PONDE num 1..4 {
+            BAU num
             BAU "BAU BAU!"
-            CO num "$num + 1"
-            CO result "$result - 55"
-        ENDPONDE
+            CO num = <num + 1>
+            CO result = <result - 55>
+        }
         BAU "---"
-    RO
-        BAU "Bau Bau..."
-
 MOCO
 
-BAU $fuwawa1
-BAU $fuwawa2
+BAU fuwawa1
+BAU fuwawa2
 BAU "---"
-BAU $result
+BAU result
 ```
 
 Output:

@@ -22,7 +22,7 @@ fn main() {
 
     AppLauncher::with_window(main_window)
         .launch(initial_state)
-        .expect("BAUDOL failed to launch!");
+        .expect("bau bau... couldn't launch :(");
 }
 
 fn build_ui() -> impl Widget<AppState> {
