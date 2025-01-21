@@ -41,7 +41,7 @@ WA is the initialisation keyword. It supports three variable types:
 #### CO
 CO is the re-assignment keyword for initialised variables. The value re-assigned MUST correspond to the variable type.
 Both WA and CO support arithmetic expressions, like so:
-```CO y = <$x * 2>```
+```CO y = <x * 2>```
 #### PE, ROPE, RO (removed temporarily due to code revision)
 PE, ROPE and RO correspond to if/elif/else statements in typical languages. PE and ROPE support arithmetic expressions and BAULEANs.
 ```
